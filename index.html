@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Finder</title>
+<!-- Neue Haas Grotesk Display is loaded from local system or licensed install -->
+<style>
+  /* Neue Haas Grotesk stack — falls back to Barlow which is very close */
+  @font-face {
+    font-family: 'NeueHaasGrotesk';
+    src: local('Neue Haas Grotesk Display Pro'), local('NeueHaasGroteskDisplayPro'), local('Neue Haas Grotesk Text Pro'), local('Helvetica Neue'), local('HelveticaNeue');
+    font-weight: 100 900;
+  }
+
+  :root {
+    --maroon: #8C1D40;
+    --maroon-dark: #6e1632;
+    --maroon-light: #a82250;
+    --gold: #FFC627;
+    --gold-dark: #e6b000;
+    --gold-light: #ffd45e;
+    --bg: #d9d9d9;
+    --surface: #ffffff;
+    --surface2: #f4f2ee;
+    --border: #e5e1da;
+    --border-strong: #ccc8bf;
+    --text: #1a1612;
+    --text2: #4a4540;
+    --muted: #8a8480;
+    --font: 'Neue Haas Grotesk Display Pro', 'NeueHaasGroteskDisplayPro', 'Neue Haas Grotesk Text Pro', 'NeueHaasGroteskTextPro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+
+
+  /* HEADER */
+  .topbar-title {
+    background: #8C1D40;
+    padding: 0 28px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar-title h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'Neue Haas Grotesk Display Pro', 'NeueHaasGroteskDisplayPro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .counter-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .clip-counter {
+    background: rgba(255,198,39,0.18);
+    border: 1px solid rgba(255,198,39,0.35);
+    color: #ffd45e;
+    padding: 4px 14px;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* NAV BAR */
+  .topbar-nav {
+    background: #FFC627;
+    padding: 0 20px;
+    display: flex;
+    align-items: stretch;
+    height: 46px;
+    position: sticky;
+    top: 58px;
+    z-index: 49;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  }
+
+  .nav-tab {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 28px 0 16px;
+    color: #000000;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    font-family: var(--font);
+    letter-spacing: 0.01em;
+  }
+
+  .nav-tab:hover { color: #000; }
+
+  .nav-tab.active {
+    color: #000;
+    border-bottom-color: #8C1D40;
+  }
+
+  .nav-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-top: -2px;
+  }
+
+    /* QUEUE */
+  .queue-item {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.82rem;
+    transition: border-color 0.2s;
+  }
+
+  .queue-item.done { border-color: #4caf50; }
+  .queue-item.error { border-color: #e53935; }
+
+  .queue-thumb {
+    width: 52px; height: 36px;
+    border-radius: 5px;
+    object-fit: cover;
+    background: #000;
+    flex-shrink: 0;
+  }
+
+  .queue-info { flex: 1; min-width: 0; }
+
+  .queue-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .queue-status {
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .queue-status.analyzing { color: var(--maroon); }
+  .queue-status.done { color: #388e3c; }
+  .queue-status.error { color: #e53935; }
+
+  .queue-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: var(--surface2);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .queue-badge.photo { background: #e0e0e0; color: #666; }
+  .queue-badge.video { background: #e0e0e0; color: #666; }
+
+  /* MAIN */
+  .main {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  /* PAGE HEADER */
+  .page-header {
+    margin-bottom: 36px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .page-title em {
+    font-style: italic;
+    color: var(--maroon);
+    font-weight: 400;
+  }
+
+  .page-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+
+  /* PANELS */
+  .panel { display: none; animation: fadeIn 0.2s ease; }
+  .panel.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border-strong);
+    border-radius: 16px;
+    padding: 56px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--maroon), var(--gold));
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+    transform-origin: left;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--maroon);
+    background: #fdf8f9;
+  }
+
+  .upload-zone:hover::after, .upload-zone.dragover::after {
+    transform: scaleX(1);
+  }
+
+  .upload-icon {
+    font-size: 2.8rem;
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  .upload-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .upload-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  #fileInput { display: none; }
+
+  /* CARDS / FORM SECTIONS */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 20px;
+  }
+
+  .form-card-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #000000;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .form-row { margin-bottom: 16px; }
+  .form-row:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 6px;
+    letter-spacing: 0.01em;
+  }
+
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  input[type="text"]:focus, textarea:focus {
+    border-color: var(--maroon);
+    box-shadow: 0 0 0 3px rgba(140,29,64,0.08);
+    background: white;
+  }
+
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+  .tag-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .tag-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .pill {
+    background: rgba(140,29,64,0.07);
+    border: 1px solid rgba(140,29,64,0.2);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--maroon);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pill .remove {
+    cursor: pointer;
+    color: var(--maroon-light);
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.1s;
+  }
+
+  .pill .remove:hover { opacity: 1; }
+
+  /* FILE INFO */
+  .file-info {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255,198,39,0.08);
+    border: 1px solid rgba(255,198,39,0.3);
+    border-radius: 8px;
+    margin-top: 14px;
+    font-size: 0.8rem;
+  }
+
+  .file-info.visible { display: flex; }
+
+  .file-name-text { font-weight: 600; color: var(--text); }
+  .file-size-text { color: var(--muted); }
+
+  preview-video { display: none; }
+
+  .preview-video {
+    width: 100%;
+    max-height: 220px;
+    border-radius: 10px;
+    margin-top: 16px;
+    background: #000;
+    display: none;
+  }
+
+  .preview-video.visible { display: block; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: var(--font);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-primary {
+    background: var(--maroon);
+    color: white;
+  }
+
+  .btn-primary:hover { background: var(--maroon-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(140,29,64,0.25); }
+  .btn-primary:active { transform: none; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-gold {
+    background: var(--gold);
+    color: var(--maroon-dark);
+  }
+
+  .btn-gold:hover { background: var(--gold-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,198,39,0.35); }
+
+  .btn-save {
+    background: #c8c8c8;
+    color: #000000;
+    border: 1.5px solid #999999;
+  }
+  .btn-save:hover { background: #b8b8b8; transform: translateY(-1px); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text2);
+    border: 1.5px solid var(--border-strong);
+  }
+
+  .btn-outline:hover { border-color: var(--maroon); color: var(--maroon); }
+
+  .save-row {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .save-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-right: auto;
+  }
+
+  /* SEARCH */
+  .search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+    align-items: center;
+  }
+
+  .search-field {
+    flex: 1;
+    position: relative;
+  }
+
+  .search-field input {
+    padding-left: 42px;
+    font-size: 0.95rem;
+    background: var(--surface);
+  }
+
+  .search-icon-pos {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 1rem;
+    pointer-events: none;
+  }
+
+  /* AI STATUS */
+  .ai-status {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: rgba(140,29,64,0.05);
+    border: 1px solid rgba(140,29,64,0.15);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.8rem;
+    color: var(--maroon);
+    font-weight: 500;
+  }
+
+  .ai-status.visible { display: flex; }
+
+  .pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--maroon);
+    animation: pulse 1s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.75); }
+  }
+
+  /* RESULTS */
+  .results-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .results-label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .results-label strong { color: var(--text); font-style: italic; }
+
+  .results-count-badge {
+    background: #e0e0e0;
+    color: #444444;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 18px;
+  }
+
+  .video-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .video-card:hover {
+    border-color: var(--maroon);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(140,29,64,0.12);
+  }
+
+  .card-thumb {
+    position: relative;
+    background: #1a0a0f;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+  }
+
+  .card-thumb video { width: 100%; height: 100%; object-fit: cover; }
+
+  .play-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(140,29,64,0.5);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .video-card:hover .play-overlay { opacity: 1; }
+
+  .play-circle {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    color: var(--maroon-dark);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  .score-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: #e0e0e0;
+    color: #444444;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
+    border-radius: 4px;
+  }
+
+  .score-badge.high { background: #c8c8c8; color: #222222; }
+
+  .card-body { padding: 14px 16px 16px; }
+
+  .card-title {
+    font-size: 0.97rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .tag-chip {
+    font-size: 0.68rem;
+    padding: 3px 9px;
+    border-radius: 100px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .tag-chip.match {
+    background: rgba(255,198,39,0.15);
+    border-color: rgba(255,198,39,0.5);
+    color: #8a6000;
+  }
+
+  .match-why {
+    font-size: 0.73rem;
+    color: var(--maroon);
+    font-weight: 500;
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  .card-meta-row {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* LIBRARY */
+  .library-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .lib-count { font-size: 0.8rem; color: var(--muted); }
+  .lib-count strong { color: var(--text); font-size: 1rem; }
+
+  .library-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .lib-section-heading {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #000000;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #000000;
+  }
+
+  .lib-empty-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 10px 4px;
+    font-style: italic;
+  }
+
+  .lib-item {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border-color 0.15s;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .lib-item:hover { border-color: var(--border-strong); }
+
+  .lib-thumb {
+    width: 112px;
+    height: 72px;
+    min-width: 112px;
+    border-radius: 7px;
+    background: #e0e0e0;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .lib-thumb img,
+  .lib-thumb video {
+    width: 112px !important;
+    height: 72px !important;
+    object-fit: cover !important;
+    display: block !important;
+  }
+
+  .lib-info { flex: 1; min-width: 0; transition: opacity 0.15s; }
+  .lib-info:hover { opacity: 0.75; }
+
+  .lib-name {
+    font-weight: 700;
+    font-size: 0.93rem;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+  }
+
+  .lib-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  .lib-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    transition: all 0.15s;
+  }
+
+  .icon-btn:hover { border-color: var(--maroon); color: var(--maroon); background: rgba(140,29,64,0.05); }
+
+  /* DROPDOWN MENU */
+  .lib-actions { position: relative; display: flex; gap: 6px; flex-shrink: 0; }
+
+  .dots-btn {
+    width: 34px; height: 34px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    transition: all 0.15s;
+    font-family: var(--font);
+  }
+
+  .dots-btn:hover, .dots-btn.open { border-color: var(--maroon); color: var(--maroon); background: rgba(140,29,64,0.05); }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+    z-index: 60;
+    min-width: 140px;
+    overflow: hidden;
+    display: none;
+    animation: fadeIn 0.15s ease;
+  }
+
+  .dropdown-menu.open { display: block; }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.1s;
+    border: none;
+    background: transparent;
+    width: 100%;
+    font-family: var(--font);
+    text-align: left;
+  }
+
+  .dropdown-item:hover { background: var(--surface2); color: var(--text); }
+  .dropdown-item.danger:hover { background: #fff0f0; color: #c0392b; }
+  .dropdown-item + .dropdown-item { border-top: 1px solid var(--border); }
+
+  /* EDIT MODAL */
+  .edit-modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(26,6,13,0.75);
+    z-index: 110;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(6px);
+  }
+
+  .edit-modal-bg.open { display: flex; }
+
+  .edit-modal {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 560px;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+    box-shadow: 0 24px 80px rgba(140,29,64,0.25);
+  }
+
+  .edit-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--maroon);
+    color: white;
+  }
+
+  .edit-modal-title { font-size: 0.97rem; font-weight: 700; }
+
+  .edit-modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .edit-modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  /* EMPTY STATES */
+  .empty {
+    text-align: center;
+    padding: 64px 20px;
+    color: var(--muted);
+  }
+
+  .empty-icon { font-size: 3rem; margin-bottom: 14px; display: block; }
+
+  .empty-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text2);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .empty-sub { font-size: 0.8rem; font-weight: 400; }
+
+  /* MODAL */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(26,6,13,0.75);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(6px);
+  }
+
+  .modal-bg.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 720px;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+    box-shadow: 0 24px 80px rgba(140,29,64,0.25);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--maroon);
+    color: white;
+  }
+
+  .modal-title {
+    font-size: 0.97rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .modal-close {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .modal-close:hover { background: rgba(255,255,255,0.1); color: white; }
+
+  .modal-video { width: 100%; max-height: 420px; background: #000; display: none; }
+  #modalImage { width: 100%; max-height: 420px; object-fit: contain; background: #111; display: none; }
+
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .modal-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+
+  .modal-desc {
+    font-size: 0.8rem;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    background: var(--maroon);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: var(--font);
+    font-weight: 600;
+    z-index: 200;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(140,29,64,0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toast::before { content: '✓'; background: var(--gold); color: var(--maroon-dark); width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* DIVIDER */
+  .section-tag-section { display: none; }
+  .section-tag-section.visible { display: block; }
+
+  /* ── DARK MODE ── */
+  body.dark-mode {
+    --bg: #1a1a1a; --surface: #2a2a2a; --surface2: #333;
+    --border: #444; --border-strong: #555;
+    --text: #f0f0f0; --text2: #ccc; --muted: #888;
+  }
+
+  /* ── SEARCH HISTORY ── */
+  .search-history { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .history-chip {
+    font-size:0.72rem; padding:3px 10px; border-radius:100px;
+    background:#e8e8e8; color:#555; cursor:pointer; border:1px solid #ccc;
+    transition: background 0.15s;
+  }
+  .history-chip:hover { background:#d0d0d0; }
+  .history-clear { font-size:0.68rem; color:var(--muted); cursor:pointer; padding:3px 8px; }
+  .history-clear:hover { color:var(--maroon); }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    margin-bottom:16px; padding:10px 14px;
+    background:var(--surface); border-radius:10px;
+    border:1.5px solid var(--border);
+  }
+  .filter-label { font-size:0.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
+  .filter-btn {
+    font-size:0.75rem; font-weight:600; padding:4px 12px;
+    border-radius:100px; border:1.5px solid var(--border);
+    background:transparent; cursor:pointer; color:var(--text2);
+    transition:all 0.15s;
+  }
+  .filter-btn.active { background:var(--maroon); color:white; border-color:var(--maroon); }
+  .sort-select {
+    font-size:0.75rem; padding:4px 10px; border-radius:8px;
+    border:1.5px solid var(--border); background:var(--surface);
+    color:var(--text2); cursor:pointer; margin-left:auto;
+  }
+
+  /* ── COLLECTIONS ── */
+  .collections-bar {
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    margin-bottom:16px;
+  }
+  .collection-chip {
+    font-size:0.75rem; font-weight:600; padding:5px 14px;
+    border-radius:100px; border:1.5px solid var(--border);
+    background:var(--surface); cursor:pointer; color:var(--text2);
+    display:flex; align-items:center; gap:5px;
+    transition:all 0.15s;
+  }
+  .collection-chip.active { background:var(--maroon); color:white; border-color:var(--maroon); }
+  .collection-chip .chip-count { font-size:0.65rem; opacity:0.7; }
+  .add-collection-btn {
+    font-size:0.75rem; padding:5px 12px; border-radius:100px;
+    border:1.5px dashed var(--border); background:transparent;
+    cursor:pointer; color:var(--muted); transition:all 0.15s;
+  }
+  .add-collection-btn:hover { border-color:var(--maroon); color:var(--maroon); }
+
+  /* ── MODAL NAV ── */
+  .modal-nav {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 20px; background:var(--surface2); border-top:1px solid var(--border);
+  }
+  .modal-nav-btn {
+    font-size:0.8rem; font-weight:600; padding:6px 14px;
+    border-radius:8px; border:1.5px solid var(--border);
+    background:var(--surface); cursor:pointer; color:var(--text2);
+    transition:all 0.15s;
+  }
+  .modal-nav-btn:hover { background:var(--maroon); color:white; border-color:var(--maroon); }
+  .modal-nav-btn:disabled { opacity:0.3; cursor:not-allowed; }
+  .modal-nav-counter { font-size:0.75rem; color:var(--muted); }
+
+  /* ── AUTO-TAG SUGGESTIONS ── */
+  .ai-tag-suggestions { margin-top:10px; }
+  .ai-tag-suggestions-label { font-size:0.72rem; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  .suggested-tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .suggested-tag {
+    font-size:0.72rem; padding:3px 10px; border-radius:100px;
+    background:rgba(140,29,64,0.08); color:var(--maroon);
+    border:1px solid rgba(140,29,64,0.2); cursor:pointer;
+    transition:all 0.15s;
+  }
+  .suggested-tag:hover { background:var(--maroon); color:white; }
+  .suggested-tag.added { background:var(--maroon); color:white; opacity:0.5; cursor:default; }
+
+  /* ── UPLOAD PROGRESS ── */
+  .upload-progress-bar {
+    height:3px; background:#e0e0e0; border-radius:2px;
+    margin-top:6px; overflow:hidden; display:none;
+  }
+  .upload-progress-fill {
+    height:100%; background:var(--maroon);
+    border-radius:2px; width:0%;
+    transition:width 0.3s ease;
+  }
+
+  /* ── SAVED SEARCHES ── */
+  .saved-searches { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .saved-search-chip {
+    font-size:0.72rem; padding:3px 10px; border-radius:100px;
+    background:rgba(140,29,64,0.08); color:var(--maroon);
+    border:1px solid rgba(140,29,64,0.2); cursor:pointer;
+    display:flex; align-items:center; gap:5px;
+  }
+  .saved-search-chip:hover { background:var(--maroon); color:white; }
+  .save-search-btn {
+    font-size:0.72rem; padding:3px 10px; border-radius:100px;
+    background:transparent; color:var(--muted);
+    border:1px dashed var(--border); cursor:pointer;
+  }
+  .save-search-btn:hover { border-color:var(--maroon); color:var(--maroon); }
+
+  /* ── EXPORT / DARK MODE TOOLBAR ── */
+  .library-actions-row {
+    display:flex; gap:8px; align-items:center;
+    margin-bottom:16px; flex-wrap:wrap;
+  }
+  .lib-action-btn {
+    font-size:0.75rem; font-weight:600; padding:5px 14px;
+    border-radius:8px; border:1.5px solid var(--border);
+    background:var(--surface); cursor:pointer; color:var(--text2);
+    transition:all 0.15s;
+  }
+  .lib-action-btn:hover { border-color:var(--maroon); color:var(--maroon); }
+
+  /* ── BULK TAG ── */
+  .bulk-bar {
+    display:none; gap:8px; align-items:center; flex-wrap:wrap;
+    padding:10px 14px; background:rgba(140,29,64,0.06);
+    border-radius:10px; border:1.5px solid rgba(140,29,64,0.2);
+    margin-bottom:16px;
+  }
+  .bulk-bar.visible { display:flex; }
+  .bulk-count { font-size:0.8rem; font-weight:700; color:var(--maroon); }
+  .lib-item input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:var(--maroon); }
+
+  /* ── FULLSCREEN ── */
+  .fullscreen-btn {
+    position:absolute; bottom:10px; right:10px;
+    width:30px; height:30px; border-radius:6px;
+    background:rgba(0,0,0,0.5); color:white;
+    border:none; cursor:pointer; font-size:0.9rem;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-media-wrap { position:relative; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 600px) {
+    .topbar-title h1 { font-size:1.3rem; }
+    .main { padding:12px; }
+    .video-grid { grid-template-columns:1fr; }
+    .lib-item { flex-wrap:wrap; }
+    .filter-bar { gap:4px; }
+    .nav-tab { font-size:0.78rem; padding:0 10px; }
+    .counter-wrap { gap:4px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<div class="topbar-title">
+  <h1>Content&nbsp;&nbsp;Finder</h1>
+    <button onclick="toggleDarkMode()" id="darkBtn" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;border-radius:8px;padding:4px 12px;font-size:0.75rem;cursor:pointer;font-weight:600;">🌙 Dark</button>
+  <div class="counter-wrap">
+    <div class="clip-counter"><span id="photoCount">0</span> photos</div>
+    <div class="clip-counter"><span id="videoCount">0</span> videos</div>
+  </div>
+</div>
+<nav class="topbar-nav">
+  <button class="nav-tab active" onclick="switchTab('upload', this)">
+    Upload <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('search', this)">
+    Find <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('library', this)">
+    Library <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+  </button>
+</nav>
+
+<main class="main">
+
+  <!-- UPLOAD -->
+  <div class="panel active" id="panel-upload">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Upload</div>
+        <div class="page-sub">Tag your clips so you can find them later — fast.</div>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <span class="upload-icon">🎬</span>
+      <div class="upload-title">Drop files or click to browse</div>
+      <input type="file" id="fileInput" accept="video/*,image/*" multiple>
+    </div>
+
+    <!-- SINGLE FILE tagging (kept for single uploads) -->
+    <video class="preview-video" id="previewVideo" controls></video>
+
+    <div class="file-info" id="fileInfo">
+      <span class="file-name-text" id="fileName">—</span>
+      <span class="file-size-text" id="fileSize">—</span>
+    </div>
+
+    <div class="section-tag-section" id="tagSection">
+      <div class="form-card">
+        <div class="form-card-title" id="aiAnalysisTitle">AI Analysis</div>
+        <div id="aiAnalysisBox" style="display:none">
+          <div id="aiAnalysisStatus" style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--maroon);font-weight:500;margin-bottom:10px;">
+            <div class="pulse"></div><span>Analyzing content with AI…</span>
+          </div>
+          <div id="aiAnalysisResult" style="display:none">
+            <div style="font-size:0.8rem;color:var(--text2);line-height:1.6;padding:4px 0;" id="aiAnalysisText"></div>
+            <div style="margin-top:10px;font-size:0.72rem;color:var(--muted);">
+              <span id="metaDate"></span> &nbsp;·&nbsp; <span id="metaSize"></span> &nbsp;·&nbsp; <span id="metaDuration"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-card-title">Clip Details</div>
+        <div class="form-row">
+          <label>Title</label>
+          <input type="text" id="clipTitle" placeholder="e.g. John interview — rooftop, Campus walkthrough B-roll...">
+        </div>
+        <div class="form-row">
+          <label>Description & scene notes</label>
+          <textarea id="clipDesc" placeholder="Who's in it? What's happening? Location, mood, context — anything you'd search for later..."></textarea>
+        </div>
+        <div class="form-row">
+          <label>Tags</label>
+          <div class="tag-input-row">
+            <input type="text" id="tagInput" placeholder="john, rooftop, sunset, interview..." onkeydown="handleTagKey(event)" style="flex:1">
+            <button class="btn btn-outline" onclick="addTag()">+ Add</button>
+          </div>
+          <div class="tag-pills" id="tagPills"></div>
+          <div class="ai-tag-suggestions" id="aiTagSuggestions" style="display:none">
+            <div class="ai-tag-suggestions-label">✨ AI suggested tags — click to add</div>
+            <div class="suggested-tags" id="suggestedTags"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-row">
+        <span class="save-hint">All fields optional — the more detail, the better the search.</span>
+        <button class="btn btn-outline" onclick="resetUpload()">Clear</button>
+        <button class="btn btn-save" onclick="saveClip()">Save to Library →</button>
+      </div>
+    </div>
+
+    <!-- MULTI-FILE QUEUE -->
+    <div id="multiQueue" style="display:none; margin-top:24px;">
+      <div class="form-card-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#000;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #000;">
+        Uploading <span id="queueCount">0</span> files
+      </div>
+      <div id="queueList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="panel" id="panel-search">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Find</div>
+        <div class="page-sub">Search by name, scene, keyword, mood — AI does the matching.</div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <div class="search-field">
+        <span class="search-icon-pos">🔍</span>
+        <input type="text" id="searchInput" placeholder="Try: 'John outdoors', 'golden hour', 'office b-roll'..." onkeydown="if(event.key==='Enter')doSearch()">
+      </div>
+      <button class="btn btn-primary" onclick="doSearch()" id="searchBtn">Search</button>
+    </div>
+
+    <div class="ai-status" id="aiStatus">
+      <div class="pulse"></div>
+      <span id="aiStatusText">Scanning your library with AI…</span>
+    </div>
+
+    <!-- Search history -->
+    <div id="searchHistoryWrap" style="display:none;margin-top:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Recent</span>
+        <span class="history-clear" onclick="clearHistory()">Clear</span>
+        <span style="margin-left:auto;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Saved</span>
+        <button class="save-search-btn" onclick="saveCurrentSearch()" id="saveSearchBtn" style="display:none">+ Save</button>
+      </div>
+      <div class="search-history" id="searchHistory"></div>
+      <div class="saved-searches" id="savedSearches"></div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar" style="margin-top:14px;">
+      <span class="filter-label">Type</span>
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('photo',this)">Photos</button>
+      <button class="filter-btn" onclick="setFilter('video',this)">Videos</button>
+      <select class="sort-select" id="sortSelect" onchange="resortResults()">
+        <option value="relevance">Sort: Relevance</option>
+        <option value="date">Sort: Date</option>
+        <option value="size">Sort: Size</option>
+        <option value="name">Sort: Name</option>
+      </select>
+    </div>
+
+    <div id="searchResults">
+      <div class="empty">
+        <span class="empty-icon">🎯</span>
+        <div class="empty-title">Ready when you are</div>
+        <div class="empty-sub">Type something above and hit Search</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIBRARY -->
+  <div class="panel" id="panel-library">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Library</div>
+      </div>
+    </div>
+
+    <!-- Collections bar -->
+    <div class="collections-bar" id="collectionsBar">
+      <div class="collection-chip active" data-col="all" onclick="filterByCollection('all',this)">All <span class="chip-count" id="colCountAll"></span></div>
+      <div id="collectionChips"></div>
+      <button class="add-collection-btn" onclick="promptNewCollection()">+ New Collection</button>
+    </div>
+
+    <!-- Library actions -->
+    <div class="library-actions-row">
+      <button class="lib-action-btn" onclick="toggleBulkMode()">☑ Bulk Tag</button>
+      <button class="lib-action-btn" onclick="exportCSV()">↓ Export CSV</button>
+    </div>
+
+    <!-- Bulk tag bar -->
+    <div class="bulk-bar" id="bulkBar">
+      <span class="bulk-count" id="bulkCount">0 selected</span>
+      <input type="text" id="bulkTagInput" placeholder="Add tag to all selected..." style="flex:1;padding:5px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:0.8rem;">
+      <button class="btn btn-outline" onclick="applyBulkTag()">Apply Tag</button>
+      <button class="btn btn-outline" onclick="addToCollectionBulk()">Add to Collection</button>
+      <button class="lib-action-btn" onclick="toggleBulkMode()" style="margin-left:auto;">Done</button>
+    </div>
+
+    <div id="libraryList">
+      <div class="lib-section-heading">Photos</div>
+      <div class="library-list" id="photoList">
+        <div class="lib-empty-sub">No photos uploaded yet</div>
+      </div>
+
+      <div class="lib-section-heading" style="margin-top:28px">Videos</div>
+      <div class="library-list" id="videoList">
+        <div class="lib-empty-sub">No videos uploaded yet</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Clip</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-media-wrap">
+      <img id="modalImage" />
+      <video class="modal-video" id="modalVideo" controls></video>
+      <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-tags" id="modalTags"></div>
+      <div class="modal-desc" id="modalDesc"></div>
+    </div>
+    <div class="modal-nav">
+      <button class="modal-nav-btn" id="modalPrev" onclick="navigateModal(-1)">← Prev</button>
+      <span class="modal-nav-counter" id="modalNavCounter"></span>
+      <button class="modal-nav-btn" id="modalNext" onclick="navigateModal(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- EDIT MODAL -->
+<div class="edit-modal-bg" id="editModalBg" onclick="closeEditModal(event)">
+  <div class="edit-modal">
+    <div class="edit-modal-header">
+      <span class="edit-modal-title">Edit Clip</span>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <div class="form-row">
+        <label>Title</label>
+        <input type="text" id="editTitle" placeholder="Clip title...">
+      </div>
+      <div class="form-row">
+        <label>Description & scene notes</label>
+        <textarea id="editDesc" placeholder="Describe the scene..."></textarea>
+      </div>
+      <div class="form-row">
+        <label>Tags</label>
+        <div class="tag-input-row">
+          <input type="text" id="editTagInput" placeholder="Add a tag..." onkeydown="handleEditTagKey(event)" style="flex:1">
+          <button class="btn btn-outline" onclick="addEditTag()">+ Add</button>
+        </div>
+        <div class="tag-pills" id="editTagPills"></div>
+      </div>
+      <div class="form-row" id="editMetaSection" style="display:none">
+        <label>AI Content Analysis</label>
+        <div style="font-size:0.8rem;color:var(--text2);line-height:1.6;background:var(--surface2);border-radius:8px;padding:12px 14px;border:1px solid var(--border);" id="editMetaText"></div>
+        <div style="margin-top:8px;font-size:0.72rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;" id="editMetaStats"></div>
+      </div>
+    </div>
+    <div class="edit-modal-footer">
+      <button class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
+
+let library = [];
+let currentTags = [];
+let currentFile = null;
+let currentMetadata = {};
+
+// ─── TABS ───
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'library') renderLibrary();
+}
+
+// ─── UPLOAD ───
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'));
+  if (files.length === 1) loadFile(files[0]);
+  else if (files.length > 1) loadMultipleFiles(files);
+});
+
+fileInput.addEventListener('change', () => {
+  const files = Array.from(fileInput.files).filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'));
+  if (files.length === 1) loadFile(files[0]);
+  else if (files.length > 1) loadMultipleFiles(files);
+});
+
+function loadFile(file) {
+  currentFile = file;
+  currentFile._blobUrl = URL.createObjectURL(file);
+  currentMetadata = { date: null, size: formatSize(file.size), duration: null, aiDescription: null };
+  const url = currentFile._blobUrl;
+  const vid = document.getElementById('previewVideo');
+
+  if (file.type.startsWith('image/')) {
+    vid.style.display = 'none';
+    let img = document.getElementById('previewImage');
+    if (!img) {
+      img = document.createElement('img');
+      img.id = 'previewImage';
+      img.style.cssText = 'width:100%;max-height:220px;border-radius:10px;margin-top:16px;object-fit:contain;display:block;';
+      vid.parentNode.insertBefore(img, vid.nextSibling);
+    }
+    img.src = url;
+    img.style.display = 'block';
+    // Extract date from file lastModified
+    currentMetadata.date = new Date(file.lastModified).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    analyzeFileWithAI(file);
+  } else {
+    let img = document.getElementById('previewImage');
+    if (img) img.style.display = 'none';
+    vid.src = url;
+    vid.style.display = 'block';
+    vid.classList.add('visible');
+    currentMetadata.date = new Date(file.lastModified).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    vid.onloadedmetadata = () => {
+      const d = vid.duration;
+      currentMetadata.duration = isFinite(d) ? formatDuration(d) : 'Unknown duration';
+      document.getElementById('metaDuration').textContent = currentMetadata.duration;
+    };
+    analyzeFileWithAI(file);
+  }
+
+  const info = document.getElementById('fileInfo');
+  info.classList.add('visible');
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = formatSize(file.size);
+  document.getElementById('metaSize').textContent = formatSize(file.size);
+  document.getElementById('metaDate').textContent = currentMetadata.date;
+  document.getElementById('clipTitle').value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+  document.getElementById('tagSection').classList.add('visible');
+}
+
+function formatDuration(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+async function analyzeFileWithAI(file) {
+  const box = document.getElementById('aiAnalysisBox');
+  const statusEl = document.getElementById('aiAnalysisStatus');
+  const resultEl = document.getElementById('aiAnalysisResult');
+  const textEl = document.getElementById('aiAnalysisText');
+  box.style.display = 'block';
+  statusEl.style.display = 'flex';
+  resultEl.style.display = 'none';
+
+  try {
+    const isImage = file.type.startsWith('image/');
+    let messages;
+
+    if (isImage) {
+      // Send image directly to Claude vision
+      const base64 = await fileToBase64(file);
+      messages = [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } },
+          { type: 'text', text: 'Analyze this image in 2-3 sentences. Describe: what you see, who or what is in it, the setting/location, mood, and any notable details. Be specific and factual. This will be used for search.' }
+        ]
+      }];
+    } else {
+      // For video, analyze by filename + type since we can't send video frames easily
+      messages = [{
+        role: 'user',
+        content: `Based on this video file name: "${file.name}", file type: ${file.type}, file size: ${formatSize(file.size)}, generate a 2-sentence placeholder description noting this is a video file and listing likely searchable attributes based on the filename. Start with "Video file:".`
+      }];
+    }
+
+    const res = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages })
+    });
+
+    const data = await res.json();
+    const description = data.content.map(i => i.text || '').join('').trim();
+    currentMetadata.aiDescription = description;
+    textEl.textContent = description;
+    statusEl.style.display = 'none';
+    resultEl.style.display = 'block';
+    const titleEl = document.getElementById('aiAnalysisTitle');
+    if (titleEl) titleEl.innerHTML = '<span style="color:#388e3c;font-size:1rem;margin-right:4px;">✓</span> AI Analysis';
+    generateTagSuggestions(description);
+    // Remove box border from the form card
+    const box = document.getElementById('aiAnalysisBox');
+    if (box && box.closest('.form-card')) {
+      box.closest('.form-card').style.border = 'none';
+      box.closest('.form-card').style.background = 'transparent';
+      box.closest('.form-card').style.padding = '0';
+      box.closest('.form-card').style.boxShadow = 'none';
+    }
+  } catch(err) {
+    currentMetadata.aiDescription = null;
+    statusEl.style.display = 'none';
+    resultEl.style.display = 'none';
+    const titleEl = document.getElementById('aiAnalysisTitle');
+    if (titleEl) titleEl.innerHTML = 'AI Analysis';
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatSize(b) {
+  if (b > 1e9) return (b/1e9).toFixed(1) + ' GB';
+  if (b > 1e6) return (b/1e6).toFixed(1) + ' MB';
+  return (b/1e3).toFixed(0) + ' KB';
+}
+
+// ─── MULTI FILE UPLOAD ───
+async function loadMultipleFiles(files) {
+  // Hide single-file UI
+  document.getElementById('previewVideo').style.display = 'none';
+  document.getElementById('fileInfo').classList.remove('visible');
+  document.getElementById('tagSection').classList.remove('visible');
+
+  const queue = document.getElementById('multiQueue');
+  const queueList = document.getElementById('queueList');
+  document.getElementById('queueCount').textContent = files.length;
+  queue.style.display = 'block';
+  queueList.innerHTML = '';
+
+  for (const file of files) {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    const isImage = file.type.startsWith('image/');
+    const url = URL.createObjectURL(file);
+    const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+    const date = new Date(file.lastModified).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    // Check for duplicate
+    const isDuplicate = library.find(c => c.fileName === file.name && c.fileSize === file.size);
+
+    // Add queue row
+    const row = document.createElement('div');
+    row.className = 'queue-item' + (isDuplicate ? ' error' : '');
+    row.id = 'qitem-' + id;
+    row.innerHTML = `
+      ${isImage
+        ? `<img class="queue-thumb" src="${url}" />`
+        : `<video class="queue-thumb" src="${url}" muted preload="metadata"></video>`}
+      <div class="queue-info">
+        <div class="queue-name">${file.name}</div>
+        <div class="queue-status ${isDuplicate ? 'error' : 'analyzing'}" id="qstatus-${id}">
+          ${isDuplicate
+            ? '⚠ Already in library — skipped'
+            : '<div class="pulse" style="width:6px;height:6px;"></div> Analyzing with AI…'}
+        </div>
+      </div>
+      <span class="queue-badge ${isImage ? 'photo' : 'video'}">${isImage ? 'Photo' : 'Video'}</span>
+    `;
+    queueList.appendChild(row);
+
+    if (isDuplicate) continue;
+
+    // Get duration for videos
+    let duration = null;
+    if (!isImage) {
+      const tmpVid = document.createElement('video');
+      tmpVid.src = url;
+      duration = await new Promise(res => {
+        tmpVid.onloadedmetadata = () => res(isFinite(tmpVid.duration) ? formatDuration(tmpVid.duration) : null);
+        tmpVid.onerror = () => res(null);
+        setTimeout(() => res(null), 3000);
+      });
+    }
+
+    // Run AI analysis
+    let aiDescription = null;
+    try {
+      let messages;
+      if (isImage) {
+        const base64 = await fileToBase64(file);
+        messages = [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } },
+          { type: 'text', text: 'Analyze this image in 2-3 sentences. Describe: what you see, who or what is in it, the setting/location, mood, and any notable details. Be specific and factual.' }
+        ]}];
+      } else {
+        messages = [{ role: 'user', content: `Based on this video file name: "${file.name}", file type: ${file.type}, file size: ${formatSize(file.size)}, generate a 2-sentence description noting this is a video and listing likely searchable attributes. Start with "Video file:".` }];
+      }
+      const res = await fetch(ANTHROPIC_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages })
+      });
+      const data = await res.json();
+      aiDescription = data.content.map(i => i.text || '').join('').trim();
+    } catch(e) { aiDescription = null; }
+
+    // Save to library
+    library.push({
+      id: id,
+      title,
+      desc: '',
+      tags: [],
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: isImage ? 'photo' : 'video',
+      url,
+      savedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      metadata: { date, size: formatSize(file.size), duration, aiDescription }
+    });
+
+    updateCount();
+
+    // Update row status
+    const statusEl = document.getElementById('qstatus-' + id);
+    if (statusEl) {
+      statusEl.className = 'queue-status done';
+      statusEl.innerHTML = '✓ Saved' + (aiDescription ? ' · AI analysis complete' : '');
+    }
+    document.getElementById('qitem-' + id).classList.add('done');
+  }
+}
+
+// ─── TAGS ───
+function handleTagKey(e) { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }
+
+function addTag() {
+  const input = document.getElementById('tagInput');
+  const val = input.value.trim().toLowerCase();
+  if (!val || currentTags.includes(val)) { input.value = ''; return; }
+  currentTags.push(val);
+  input.value = '';
+  renderTagPills();
+}
+
+function removeTag(tag) {
+  currentTags = currentTags.filter(t => t !== tag);
+  renderTagPills();
+}
+
+function renderTagPills() {
+  document.getElementById('tagPills').innerHTML = currentTags.map(t =>
+    `<div class="pill">${t}<span class="remove" onclick="removeTag('${t}')">×</span></div>`
+  ).join('');
+}
+
+// ─── SAVE ───
+function saveClip() {
+  if (!currentFile) return;
+  const isDuplicate = library.find(c => c.fileName === currentFile.name && c.fileSize === currentFile.size);
+  if (isDuplicate) {
+    showToast('⚠ "' + currentFile.name + '" is already in your library', true);
+    return;
+  }
+  const title = document.getElementById('clipTitle').value.trim() || currentFile.name;
+  const desc = document.getElementById('clipDesc').value.trim();
+  const isImage = currentFile.type.startsWith('image/');
+  library.push({
+    id: Date.now(), title, desc,
+    tags: [...currentTags],
+    fileName: currentFile.name,
+    fileSize: currentFile.size,
+    fileType: isImage ? 'photo' : 'video',
+    url: currentFile._blobUrl || URL.createObjectURL(currentFile),
+    savedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    metadata: { ...currentMetadata }
+  });
+  updateCount();
+  showToast(`"${title}" saved`);
+  resetUpload();
+}
+
+function resetUpload() {
+  currentFile = null; currentTags = [];
+  const pv = document.getElementById('previewVideo');
+  pv.classList.remove('visible'); pv.style.display = '';
+  const pi = document.getElementById('previewImage');
+  if (pi) pi.style.display = 'none';
+  document.getElementById('fileInfo').classList.remove('visible');
+  document.getElementById('tagSection').classList.remove('visible');
+  document.getElementById('aiAnalysisBox').style.display = 'none';
+  const suggestWrap = document.getElementById('aiTagSuggestions');
+  if (suggestWrap) suggestWrap.style.display = 'none';
+  const aiTitle = document.getElementById('aiAnalysisTitle');
+  if (aiTitle) aiTitle.innerHTML = 'AI Analysis';
+  const aiCard = document.getElementById('aiAnalysisBox') && document.getElementById('aiAnalysisBox').closest('.form-card');
+  if (aiCard) { aiCard.style.border = ''; aiCard.style.background = ''; aiCard.style.padding = ''; aiCard.style.boxShadow = ''; }
+  currentMetadata = {};
+  document.getElementById('multiQueue').style.display = 'none';
+  document.getElementById('queueList').innerHTML = '';
+  document.getElementById('clipTitle').value = '';
+  document.getElementById('clipDesc').value = '';
+  document.getElementById('tagPills').innerHTML = '';
+  fileInput.value = '';
+}
+
+function updateCount() {
+  const photos = library.filter(c => c.fileType === 'photo').length;
+  const videos = library.filter(c => c.fileType !== 'photo').length;
+  document.getElementById('photoCount').textContent = photos;
+  document.getElementById('videoCount').textContent = videos;
+}
+
+// ─── SEARCH ───
+async function doSearch() {
+  const query = document.getElementById('searchInput').value.trim();
+  if (!query) return;
+  lastQuery = query;
+  addToHistory(query);
+  const ssb = document.getElementById('saveSearchBtn');
+  if (ssb) ssb.style.display = 'block';
+
+  if (library.length === 0) {
+    document.getElementById('searchResults').innerHTML = `
+      <div class="empty"><span class="empty-icon">📂</span>
+      <div class="empty-title">Library is empty</div>
+      <div class="empty-sub">Upload some clips first, then search</div></div>`;
+    return;
+  }
+
+  const statusEl = document.getElementById('aiStatus');
+  const searchBtn = document.getElementById('searchBtn');
+  statusEl.classList.add('visible');
+  document.getElementById('aiStatusText').textContent = 'Scanning your library with AI…';
+  searchBtn.disabled = true;
+
+  const libData = library.map(c => ({ id: c.id, title: c.title, description: c.desc, tags: c.tags, aiAnalysis: c.metadata?.aiDescription || '' }));
+
+  try {
+    const res = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `You are a smart media library search engine with typo correction and semantic understanding.\n\nSTEP 1 - FIX TYPOS: Correct misspellings first. Examples: 'Eifel Twer' means 'Eiffel Tower', 'bech' means 'beach', 'brithday' means 'birthday', 'mountian' means 'mountain'.\n\nSTEP 2 - EXPAND SEMANTICALLY: Expand to related concepts. 'paris' or 'eiffel tower' should match 'france', 'french'; 'beach' should match 'ocean', 'sand', 'waves'; 'birthday' should match 'cake', 'celebration', 'party'.\n\nSTEP 3 - MATCH: Search across titles, descriptions, tags and AI analysis.\n\nSearch query (may contain typos): "${query}"\n\nLibrary:\n${JSON.stringify(libData, null, 2)}\n\nReturn ONLY a raw JSON array (no markdown, no backticks). Each result: id (number), score 1-10 (6+ for semantic/typo matches), matchReason (8 words max), matchedTerms (array). Sort by score descending. Return [] if nothing related.`
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const raw = data.content.map(i => i.text || '').join('');
+    const matches = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    statusEl.classList.remove('visible');
+    renderResults(matches, query);
+  } catch(err) {
+    statusEl.classList.remove('visible');
+    const q = query.toLowerCase();
+    const fallback = library
+      .filter(c => c.title.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q) || c.tags.some(t => t.includes(q)))
+      .map(c => ({ id: c.id, score: 7, matchReason: 'keyword match', matchedTerms: [q] }));
+    renderResults(fallback, query);
+  }
+
+  searchBtn.disabled = false;
+}
+
+function renderResults(matches, query) {
+  if (matches && query) { lastSearchResults = matches; lastQuery = query; }
+  const container = document.getElementById('searchResults');
+  if (!matches || matches.length === 0) {
+    container.innerHTML = `<div class="empty"><span class="empty-icon">🔎</span>
+      <div class="empty-title">No matches found</div>
+      <div class="empty-sub">Try different keywords or broaden your search</div></div>`;
+    return;
+  }
+
+  // Apply type filter
+  let filtered = matches;
+  if (currentFilter !== 'all') {
+    filtered = matches.filter(m => {
+      const clip = library.find(c => c.id === m.id);
+      return clip && clip.fileType === currentFilter;
+    });
+  }
+
+  // Apply sort
+  const sortBy = document.getElementById('sortSelect')?.value || 'relevance';
+  if (sortBy === 'date') {
+    filtered = [...filtered].sort((a,b) => {
+      const ca = library.find(c=>c.id===a.id);
+      const cb = library.find(c=>c.id===b.id);
+      return new Date(cb?.metadata?.date||0) - new Date(ca?.metadata?.date||0);
+    });
+  } else if (sortBy === 'size') {
+    filtered = [...filtered].sort((a,b) => {
+      const ca = library.find(c=>c.id===a.id);
+      const cb = library.find(c=>c.id===b.id);
+      return (cb?.fileSize||0) - (ca?.fileSize||0);
+    });
+  } else if (sortBy === 'name') {
+    filtered = [...filtered].sort((a,b) => {
+      const ca = library.find(c=>c.id===a.id);
+      const cb = library.find(c=>c.id===b.id);
+      return (ca?.title||'').localeCompare(cb?.title||'');
+    });
+  }
+  matches = filtered;
+
+  const sorted = matches
+    .map(m => ({ clip: library.find(c => c.id === m.id), match: m }))
+    .filter(x => x.clip)
+    .sort((a, b) => b.match.score - a.match.score);
+
+  container.innerHTML = `
+    <div class="results-meta">
+      <span class="results-label">Results for <strong>"${query}"</strong></span>
+      <span class="results-count-badge">${sorted.length} found</span>
+    </div>
+    <div class="video-grid">
+      ${sorted.map(({ clip, match }) => `
+        <div class="video-card" onclick="openModal(${clip.id})">
+          <div class="card-thumb">
+            ${clip.fileType === 'photo'
+              ? `<img src="${clip.url}" style="width:100%;height:100%;object-fit:cover;" />`
+              : `<video src="${clip.url}" muted preload="metadata"></video>`}
+            ${clip.fileType !== 'photo' ? '<div class="play-overlay"><div class="play-circle">▶</div></div>' : ''}
+            <div class="score-badge ${match.score >= 8 ? 'high' : ''}">${match.score}/10</div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">${clip.title}</div>
+            <div class="card-tags">
+              ${clip.tags.map(t => `<span class="tag-chip ${(match.matchedTerms||[]).some(m => t.includes(m)||m.includes(t)) ? 'match' : ''}">${t}</span>`).join('')}
+            </div>
+            <div class="match-why">↳ ${match.matchReason}</div>
+            <div class="card-meta-row"><span>${clip.savedAt}</span><span>${formatSize(clip.fileSize)}</span></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// ─── LIBRARY ───
+function renderLibrarySection(items) {
+  if (items.length === 0) return '<div class="lib-empty-sub">None uploaded yet</div>';
+  return items.map(clip => `
+    <div class="lib-item" id="libitem-${clip.id}">
+      ${bulkMode ? `<input type="checkbox" ${selectedItems.has(clip.id)?'checked':''} onchange="toggleSelectItem(${clip.id})" style="margin-right:4px;">` : ''}
+      <div class="lib-thumb" id="thumb-${clip.id}">
+        <div style="width:112px;height:72px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">⏳</div>
+      </div>
+      <div class="lib-info" onclick="openModalFromLibrary(${clip.id})" style="cursor:pointer">
+        <div class="lib-name" style="text-decoration:underline; text-decoration-color: rgba(140,29,64,0.3); text-underline-offset:3px;">${clip.title}</div>
+        <div class="lib-meta" style="font-size:0.7rem;color:var(--muted);margin:2px 0;">${clip.metadata&&clip.metadata.duration?clip.metadata.duration+' · ':''}${clip.metadata&&clip.metadata.size?clip.metadata.size:''}</div>
+        <div class="lib-tags">${clip.tags.map(t => `<span class="tag-chip">${t}</span>`).join('')}</div>
+      </div>
+      <div class="lib-actions">
+        <button class="dots-btn" id="dots-${clip.id}" onclick="toggleDropdown(event, ${clip.id})" title="Options">&#8942;</button>
+        <div class="dropdown-menu" id="menu-${clip.id}">
+          <button class="dropdown-item" onclick="openModalFromLibrary(${clip.id}); closeAllDropdowns()">&#9654; View</button>
+          <button class="dropdown-item" onclick="openEditModal(${clip.id})">&#9998; Edit</button>
+          <button class="dropdown-item" onclick="addClipToCollection(${clip.id}); closeAllDropdowns()">📁 Add to Collection</button>
+          <button class="dropdown-item danger" onclick="deleteClip(${clip.id})">&#128465; Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openModalFromLibrary(id) {
+  const visibleItems = [
+    ...library.filter(c => c.fileType === 'photo'),
+    ...library.filter(c => c.fileType !== 'photo')
+  ].filter(c => activeCollection === 'all' || (collections[activeCollection]||[]).includes(c.id));
+  openModalWithList(id, visibleItems);
+}
+
+function renderLibrary() {
+  renderCollections();
+  const visible = activeCollection === 'all' ? library : library.filter(c => (collections[activeCollection]||[]).includes(c.id));
+  const photos = visible.filter(c => c.fileType === 'photo');
+  const videos = visible.filter(c => c.fileType === 'video' || !c.fileType);
+
+  document.getElementById('photoList').innerHTML = renderLibrarySection(photos);
+  document.getElementById('videoList').innerHTML = renderLibrarySection(videos);
+
+  // Populate thumbnails after DOM renders
+  requestAnimationFrame(() => {
+    const visibleItems = activeCollection === 'all' ? library : library.filter(c => (collections[activeCollection]||[]).includes(c.id));
+    visibleItems.forEach(clip => {
+      const thumbDiv = document.getElementById('thumb-' + clip.id);
+      if (!thumbDiv || !clip.url) return;
+      if (clip.fileType === 'photo') {
+        const img = document.createElement('img');
+        img.style.cssText = 'width:112px;height:72px;object-fit:cover;display:block;border-radius:6px;';
+        img.onload = () => { thumbDiv.innerHTML = ''; thumbDiv.appendChild(img); };
+        img.onerror = () => { thumbDiv.innerHTML = '<div style="width:112px;height:72px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;">🖼</div>'; };
+        img.src = clip.url;
+      } else {
+        const vid = document.createElement('video');
+        vid.style.cssText = 'width:112px;height:72px;object-fit:cover;display:block;border-radius:6px;';
+        vid.muted = true; vid.playsInline = true; vid.preload = 'metadata';
+        vid.addEventListener('loadedmetadata', () => { vid.currentTime = 0.5; }, { once: true });
+        vid.addEventListener('seeked', () => { thumbDiv.innerHTML = ''; thumbDiv.appendChild(vid); }, { once: true });
+        vid.onerror = () => { thumbDiv.innerHTML = '<div style="width:112px;height:72px;background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;">🎬</div>'; };
+        vid.src = clip.url;
+      }
+    });
+  });
+}
+
+function deleteClip(id) {
+  library = library.filter(c => c.id !== id);
+  // Remove from all collections
+  Object.keys(collections).forEach(name => {
+    collections[name] = collections[name].filter(cid => cid !== id);
+  });
+  selectedItems.delete(id);
+  updateCount();
+  renderLibrary();
+  showToast('Clip removed');
+}
+
+// ─── MODAL ───
+function openModal(id) {
+  const numId = Number(id);
+  const clip = library.find(c => c.id === numId || c.id === id);
+  if (!clip) return;
+
+  document.getElementById('modalTitle').textContent = clip.title;
+  document.getElementById('modalTags').innerHTML = clip.tags.map(t => `<span class="tag-chip">${t}</span>`).join('');
+  document.getElementById('modalDesc').textContent = clip.desc || (clip.metadata && clip.metadata.aiDescription ? clip.metadata.aiDescription : 'No description provided.');
+
+  const vid = document.getElementById('modalVideo');
+  const img = document.getElementById('modalImage');
+
+  if (clip.fileType === 'photo') {
+    vid.pause();
+    vid.src = '';
+    vid.style.display = 'none';
+    img.src = clip.url;
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+    img.src = '';
+    vid.style.display = 'block';
+    vid.src = clip.url;
+    vid.load();
+    vid.play().catch(() => {});
+  }
+
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modalBg') || (e.target && e.target.classList.contains('modal-close'))) {
+    document.getElementById('modalBg').classList.remove('open');
+    const v = document.getElementById('modalVideo');
+    v.pause(); v.src = '';
+    const i = document.getElementById('modalImage');
+    if (i) { i.src = ''; i.style.display = 'none'; }
+  }
+}
+
+// ─── DROPDOWN ───
+let openDropdownId = null;
+
+function toggleDropdown(e, id) {
+  e.stopPropagation();
+  const menu = document.getElementById('menu-' + id);
+  const btn = document.getElementById('dots-' + id);
+  const isOpen = menu.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    menu.classList.add('open');
+    btn.classList.add('open');
+    openDropdownId = id;
+  }
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.dots-btn.open').forEach(b => b.classList.remove('open'));
+  openDropdownId = null;
+}
+
+document.addEventListener('click', () => closeAllDropdowns());
+
+// ─── EDIT MODAL ───
+let editingId = null;
+let editTags = [];
+
+function openEditModal(id) {
+  closeAllDropdowns();
+  const clip = library.find(c => c.id === id);
+  if (!clip) return;
+  editingId = id;
+  editTags = [...clip.tags];
+  document.getElementById('editTitle').value = clip.title;
+  document.getElementById('editDesc').value = clip.desc || '';
+  renderEditTagPills();
+
+  const metaSection = document.getElementById('editMetaSection');
+  const m = clip.metadata;
+  if (m && (m.aiDescription || m.date || m.size || m.duration)) {
+    document.getElementById('editMetaText').textContent = m.aiDescription || 'AI analysis not available for this file.';
+    const stats = [
+      m.date     ? '<span>📅 ' + m.date + '</span>' : '',
+      m.size     ? '<span>💾 ' + m.size + '</span>' : '',
+      m.duration ? '<span>⏱ ' + m.duration + '</span>' : ''
+    ].filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+    document.getElementById('editMetaStats').innerHTML = stats;
+    metaSection.style.display = 'block';
+  } else {
+    document.getElementById('editMetaText').textContent = 'No metadata available.';
+    document.getElementById('editMetaStats').innerHTML = '';
+    metaSection.style.display = 'block';
+  }
+
+  document.getElementById('editModalBg').classList.add('open');
+}
+
+function closeEditModal(e) {
+  if (!e || e.target === document.getElementById('editModalBg') || (e.target && e.target.classList.contains('modal-close'))) {
+    document.getElementById('editModalBg').classList.remove('open');
+    editingId = null;
+    editTags = [];
+  }
+}
+
+function handleEditTagKey(e) { if (e.key === 'Enter') { e.preventDefault(); addEditTag(); } }
+
+function addEditTag() {
+  const input = document.getElementById('editTagInput');
+  const val = input.value.trim().toLowerCase();
+  if (!val || editTags.includes(val)) { input.value = ''; return; }
+  editTags.push(val);
+  input.value = '';
+  renderEditTagPills();
+}
+
+function removeEditTag(tag) {
+  editTags = editTags.filter(t => t !== tag);
+  renderEditTagPills();
+}
+
+function renderEditTagPills() {
+  document.getElementById('editTagPills').innerHTML = editTags.map(t =>
+    `<div class="pill">${t}<span class="remove" onclick="removeEditTag('${t}')">×</span></div>`
+  ).join('');
+}
+
+function saveEdit() {
+  if (!editingId) return;
+  const clip = library.find(c => c.id === editingId);
+  if (!clip) return;
+  clip.title = document.getElementById('editTitle').value.trim() || clip.title;
+  clip.desc = document.getElementById('editDesc').value.trim();
+  clip.tags = [...editTags];
+  closeEditModal();
+  renderLibrary();
+  showToast('Clip updated');
+}
+
+// ─── TOAST ───
+function showToast(msg, isWarning) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isWarning ? '#b45309' : 'var(--maroon)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ─── GLOBALS ───
+let searchHistory = [];
+let savedSearches = [];
+let currentFilter = 'all';
+let lastSearchResults = [];
+let lastQuery = '';
+let currentModalIndex = -1;
+let currentModalList = [];
+let collections = {};   // { name: [id, id, ...] }
+let activeCollection = 'all';
+let bulkMode = false;
+let selectedItems = new Set();
+let darkMode = false;
+
+// ─── DARK MODE ───
+function toggleDarkMode() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  document.getElementById('darkBtn').textContent = darkMode ? '☀ Light' : '🌙 Dark';
+}
+
+// ─── KEYBOARD SHORTCUTS ───
+document.addEventListener('keydown', e => {
+  const modalOpen = document.getElementById('modalBg').classList.contains('open');
+  if (modalOpen) {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'ArrowRight') navigateModal(1);
+    if (e.key === 'ArrowLeft') navigateModal(-1);
+  }
+  if (e.key === '/' && !modalOpen && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+    switchTab('search', document.querySelectorAll('.nav-tab')[1]);
+  }
+});
+
+// ─── SEARCH HISTORY ───
+function addToHistory(query) {
+  searchHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
+  renderHistory();
+}
+
+function clearHistory() {
+  searchHistory = [];
+  renderHistory();
+}
+
+function renderHistory() {
+  const wrap = document.getElementById('searchHistoryWrap');
+  const histEl = document.getElementById('searchHistory');
+  const savedEl = document.getElementById('savedSearches');
+  if (!wrap || !histEl || !savedEl) return;
+  const hasContent = searchHistory.length > 0 || savedSearches.length > 0;
+  wrap.style.display = hasContent ? 'block' : 'none';
+  histEl.innerHTML = searchHistory.map(h =>
+    `<span class="history-chip" onclick="runSavedSearch(this.dataset.q)" data-q="${h.replace(/"/g,'&quot;')}">🕐 ${h}</span>`
+  ).join('');
+  savedEl.innerHTML = savedSearches.map((s,i) =>
+    `<span class="saved-search-chip" onclick="runSavedSearch(this.dataset.q)" data-q="${s.replace(/"/g,'&quot;')}">⭐ ${s} <span onclick="removeSavedSearch(${i});event.stopPropagation()">×</span></span>`
+  ).join('');
+  const saveBtn = document.getElementById('saveSearchBtn');
+  if (saveBtn) saveBtn.style.display = lastQuery ? 'inline-block' : 'none';
+}
+
+function runSavedSearch(query) {
+  const input = document.getElementById('searchInput');
+  if (!input) return;
+  // Support being called with element (from onclick) or string
+  const q = typeof query === 'string' ? query : query;
+  input.value = q;
+  doSearch();
+}
+
+function saveCurrentSearch() {
+  if (!lastQuery) { showToast('Run a search first', true); return; }
+  if (savedSearches.includes(lastQuery)) { showToast('Already saved', true); return; }
+  savedSearches.push(lastQuery);
+  renderHistory();
+  showToast('Search saved ⭐');
+}
+
+function removeSavedSearch(i) {
+  savedSearches.splice(i, 1);
+  renderHistory();
+}
+
+// ─── FILTER & SORT ───
+function setFilter(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (lastSearchResults.length) renderResults(lastSearchResults, lastQuery);
+}
+
+function resortResults() {
+  if (lastSearchResults.length) renderResults(lastSearchResults, lastQuery);
+}
+
+// ─── MODAL NAVIGATION ───
+function openModalWithList(id, list) {
+  currentModalList = list;
+  currentModalIndex = list.findIndex(c => c.id === id);
+  openModal(id);
+  updateModalNav();
+}
+
+function navigateModal(dir) {
+  const newIdx = currentModalIndex + dir;
+  if (newIdx < 0 || newIdx >= currentModalList.length) return;
+  currentModalIndex = newIdx;
+  openModal(currentModalList[newIdx].id);
+  updateModalNav();
+}
+
+function updateModalNav() {
+  const counter = document.getElementById('modalNavCounter');
+  const prev = document.getElementById('modalPrev');
+  const next = document.getElementById('modalNext');
+  if (!currentModalList.length) return;
+  counter.textContent = (currentModalIndex + 1) + ' of ' + currentModalList.length;
+  prev.disabled = currentModalIndex <= 0;
+  next.disabled = currentModalIndex >= currentModalList.length - 1;
+}
+
+// ─── FULLSCREEN ───
+function toggleFullscreen() {
+  const wrap = document.querySelector('.modal-media-wrap');
+  if (!document.fullscreenElement) {
+    wrap.requestFullscreen && wrap.requestFullscreen();
+  } else {
+    document.exitFullscreen && document.exitFullscreen();
+  }
+}
+
+// ─── AI AUTO-TAG SUGGESTIONS ───
+async function generateTagSuggestions(description) {
+  if (!description) return;
+  try {
+    const res = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: 'Based on this media description, suggest 5-8 short searchable tags (single words or short 2-word phrases). Return ONLY a JSON array of strings, no markdown, no backticks.\n\nDescription: ' + description }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.map(i => i.text || '').join('').trim();
+    const suggestions = JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g, '').trim());
+    if (Array.isArray(suggestions) && suggestions.length) {
+      showTagSuggestions(suggestions);
+    }
+  } catch(e) {}
+}
+
+function showTagSuggestions(tags) {
+  const wrap = document.getElementById('aiTagSuggestions');
+  const container = document.getElementById('suggestedTags');
+  if (!wrap || !container) return;
+  container.innerHTML = tags.map(t =>
+    `<span class="suggested-tag" onclick="addSuggestedTag(this,'${t.replace(/'/g,"\'")}')">+ ${t}</span>`
+  ).join('');
+  wrap.style.display = 'block';
+}
+
+function addSuggestedTag(el, tag) {
+  if (el.classList.contains('added')) return;
+  if (!currentTags.includes(tag)) {
+    currentTags.push(tag);
+    renderTagPills();
+  }
+  el.classList.add('added');
+  el.textContent = '✓ ' + tag;
+}
+
+// ─── COLLECTIONS ───
+function renderCollections() {
+  const chips = document.getElementById('collectionChips');
+  if (!chips) return;
+  const names = Object.keys(collections);
+  chips.innerHTML = names.map(name =>
+    `<div class="collection-chip ${activeCollection===name?'active':''}" data-col="${name}" onclick="filterByCollection('${name.replace(/'/g,"\'")}',this)">
+      ${name} <span class="chip-count">${(collections[name]||[]).length}</span>
+      <span onclick="deleteCollection('${name.replace(/'/g,"\'")}');event.stopPropagation()" style="opacity:0.5;margin-left:3px;">×</span>
+    </div>`
+  ).join('');
+  const allChip = document.querySelector('[data-col="all"]');
+  if (allChip) {
+    const cc = allChip.querySelector('.chip-count');
+    if (cc) cc.textContent = library.length;
+  }
+}
+
+function filterByCollection(name, el) {
+  activeCollection = name;
+  document.querySelectorAll('.collection-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderLibrary();
+}
+
+function promptNewCollection() {
+  const name = prompt('Collection name:');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  if (collections[trimmed]) { showToast('Collection already exists', true); return; }
+  collections[trimmed] = [];
+  renderCollections();
+  showToast('Collection "' + trimmed + '" created');
+}
+
+function deleteCollection(name) {
+  if (!confirm('Delete collection "' + name + '"?')) return;
+  delete collections[name];
+  if (activeCollection === name) activeCollection = 'all';
+  renderCollections();
+  renderLibrary();
+}
+
+function addToCollectionBulk() {
+  const names = Object.keys(collections);
+  if (!names.length) { showToast('Create a collection first', true); return; }
+  const name = prompt('Add to collection:\n' + names.join('\n'));
+  if (!name || !collections[name]) return;
+  selectedItems.forEach(id => {
+    if (!collections[name].includes(id)) collections[name].push(id);
+  });
+  renderCollections();
+  showToast(selectedItems.size + ' items added to "' + name + '"');
+}
+
+// Collection in edit modal
+function addClipToCollection(clipId) {
+  const names = Object.keys(collections);
+  if (!names.length) { showToast('Create a collection in Library first', true); return; }
+  const name = prompt('Add to collection:\n' + names.join('\n'));
+  if (!name || !collections[name]) return;
+  if (!collections[name].includes(clipId)) collections[name].push(clipId);
+  renderCollections();
+  showToast('Added to "' + name + '"');
+}
+
+// ─── BULK TAG MODE ───
+function toggleBulkMode() {
+  bulkMode = !bulkMode;
+  selectedItems.clear();
+  document.getElementById('bulkBar').classList.toggle('visible', bulkMode);
+  document.getElementById('bulkCount').textContent = '0 selected';
+  renderLibrary();
+}
+
+function toggleSelectItem(id) {
+  if (selectedItems.has(id)) selectedItems.delete(id);
+  else selectedItems.add(id);
+  document.getElementById('bulkCount').textContent = selectedItems.size + ' selected';
+}
+
+function applyBulkTag() {
+  const input = document.getElementById('bulkTagInput');
+  const tag = input.value.trim().toLowerCase();
+  if (!tag) { showToast('Enter a tag first', true); return; }
+  if (!selectedItems.size) { showToast('Select items first', true); return; }
+  let count = 0;
+  selectedItems.forEach(id => {
+    const clip = library.find(c => c.id === id);
+    if (clip && !clip.tags.includes(tag)) { clip.tags.push(tag); count++; }
+  });
+  input.value = '';
+  renderLibrary();
+  showToast('Tag "' + tag + '" added to ' + count + ' items');
+}
+
+// ─── EXPORT CSV ───
+function exportCSV() {
+  if (!library.length) { showToast('Nothing to export', true); return; }
+  const headers = ['Title','File Name','Type','Size','Date','Tags','AI Description'];
+  const rows = library.map(c => [
+    c.title, c.fileName, c.fileType, c.metadata?.size||'',
+    c.metadata?.date||c.savedAt, c.tags.join(';'),
+    (c.metadata?.aiDescription||'').replace(/"/g,"'")
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => '"'+v+'"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'content-finder-library.csv';
+  a.click();
+  showToast('Library exported as CSV');
+}
+
+</script>
+</body>
+</html>
