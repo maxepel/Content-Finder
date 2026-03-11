@@ -1015,6 +1015,11 @@
     --text: #f0f0f0; --text2: #ccc; --muted: #888;
   }
 
+  body.dark-mode .lib-section-heading {
+    color: #ffffff;
+    border-bottom-color: #ffffff;
+  }
+
   /* ── SEARCH HISTORY ── */
   .search-history { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
   .history-chip {
@@ -1167,6 +1172,68 @@
     .nav-tab { font-size:0.78rem; padding:0 10px; }
     .counter-wrap { gap:4px; }
   }
+
+  /* ── VIDEO FRAME PICKER ── */
+  .frame-picker-section {
+    margin-top: 12px;
+  }
+  .frame-picker-label {
+    font-size: 0.72rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .frames-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .frame-thumb-wrap {
+    position: relative; cursor: pointer;
+    border-radius: 7px; overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+    flex-shrink: 0;
+  }
+  .frame-thumb-wrap:hover { border-color: var(--maroon); }
+  .frame-thumb-wrap.selected { border-color: var(--maroon); }
+  .frame-thumb-wrap.selected::after {
+    content: '✓';
+    position: absolute; top: 3px; right: 4px;
+    background: var(--maroon); color: white;
+    font-size: 0.6rem; font-weight: 700;
+    width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .frame-thumb-wrap canvas {
+    width: 88px; height: 56px;
+    object-fit: cover; display: block;
+  }
+  .frame-timestamp {
+    position: absolute; bottom: 3px; left: 4px;
+    font-size: 0.55rem; font-weight: 700; color: white;
+    background: rgba(0,0,0,0.6); border-radius: 3px;
+    padding: 1px 4px; line-height: 1.4;
+  }
+  .add-frame-btn {
+    width: 88px; height: 56px; border-radius: 7px;
+    border: 1.5px dashed var(--border); background: transparent;
+    cursor: pointer; color: var(--muted); font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .add-frame-btn:hover { border-color: var(--maroon); color: var(--maroon); }
+  .frame-actions {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .analyze-frames-btn {
+    font-size: 0.75rem; font-weight: 700; padding: 6px 16px;
+    border-radius: 8px; border: none;
+    background: var(--maroon); color: white; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .analyze-frames-btn:hover { opacity: 0.85; }
+  .analyze-frames-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .frame-hint { font-size: 0.7rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -1222,8 +1289,25 @@
         <div class="form-card-title" id="aiAnalysisTitle">AI Analysis</div>
         <div id="aiAnalysisBox" style="display:none">
           <div id="aiAnalysisStatus" style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--maroon);font-weight:500;margin-bottom:10px;">
-            <div class="pulse"></div><span>Analyzing content with AI…</span>
+            <div class="pulse"></div><span id="aiStatusText">Analyzing content with AI…</span>
           </div>
+
+          <!-- Video frame picker — shown for video files only -->
+          <div id="framePickerSection" class="frame-picker-section" style="display:none">
+            <div class="frame-picker-label">
+              Frames for AI analysis
+              <span class="frame-hint">Click a frame to deselect · Click + to add your own</span>
+            </div>
+            <div class="frames-row" id="framesRow">
+              <!-- frames injected here -->
+              <button class="add-frame-btn" id="addFrameBtn" onclick="captureCustomFrame()" title="Capture frame at current video position">+</button>
+            </div>
+            <div class="frame-actions">
+              <button class="analyze-frames-btn" id="analyzeFramesBtn" onclick="analyzeSelectedFrames()">Analyze Selected Frames</button>
+              <span class="frame-hint" id="frameSelCount">0 frames selected</span>
+            </div>
+          </div>
+
           <div id="aiAnalysisResult" style="display:none">
             <div style="font-size:0.8rem;color:var(--text2);line-height:1.6;padding:4px 0;" id="aiAnalysisText"></div>
             <div style="margin-top:10px;font-size:0.72rem;color:var(--muted);">
@@ -1342,7 +1426,12 @@
     <div class="collections-bar" id="collectionsBar">
       <div class="collection-chip active" data-col="all" onclick="filterByCollection('all',this)">All <span class="chip-count" id="colCountAll"></span></div>
       <div id="collectionChips"></div>
-      <button class="add-collection-btn" onclick="promptNewCollection()">+ New Collection</button>
+      <button class="add-collection-btn" id="newColBtn" onclick="showNewCollectionInput()">+ New Collection</button>
+      <div id="newColForm" style="display:none;display:none;align-items:center;gap:6px;">
+        <input type="text" id="newColInput" placeholder="Collection name..." onkeydown="handleNewColKey(event)" style="padding:4px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:0.78rem;outline:none;width:150px;">
+        <button onclick="confirmNewCollection()" style="font-size:0.75rem;padding:4px 12px;border-radius:8px;border:none;background:var(--maroon);color:white;cursor:pointer;font-weight:600;">Add</button>
+        <button onclick="hideNewCollectionInput()" style="font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);">✕</button>
+      </div>
     </div>
 
     <!-- Library actions -->
@@ -1390,6 +1479,7 @@
     <div class="modal-footer">
       <div class="modal-tags" id="modalTags"></div>
       <div class="modal-desc" id="modalDesc"></div>
+      <button onclick="downloadCurrentFile()" style="margin-top:10px;font-size:0.78rem;font-weight:600;padding:6px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;">↓ Download</button>
     </div>
     <div class="modal-nav">
       <button class="modal-nav-btn" id="modalPrev" onclick="navigateModal(-1)">← Prev</button>
@@ -1527,53 +1617,229 @@ function formatDuration(secs) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+// Stores captured frames: [{canvas, timestamp, selected}]
+let capturedFrames = [];
+
 async function analyzeFileWithAI(file) {
   const box = document.getElementById('aiAnalysisBox');
   const statusEl = document.getElementById('aiAnalysisStatus');
   const resultEl = document.getElementById('aiAnalysisResult');
-  const textEl = document.getElementById('aiAnalysisText');
   box.style.display = 'block';
   statusEl.style.display = 'flex';
   resultEl.style.display = 'none';
+  capturedFrames = [];
+
+  const isImage = file.type.startsWith('image/');
+
+  if (isImage) {
+    // Images — analyze directly
+    document.getElementById('framePickerSection').style.display = 'none';
+    document.getElementById('aiStatusText').textContent = 'Analyzing image with AI…';
+    await analyzeImageFile(file);
+  } else {
+    // Videos — extract frames first, then let user choose
+    document.getElementById('aiStatusText').textContent = 'Extracting video frames…';
+    document.getElementById('framePickerSection').style.display = 'block';
+    await extractVideoFrames(file);
+    statusEl.style.display = 'none';
+  }
+}
+
+async function extractVideoFrames(file) {
+  const video = document.getElementById('previewVideo');
+  const duration = video.duration || 0;
+  if (!isFinite(duration) || duration === 0) {
+    // Wait for metadata
+    await new Promise(res => {
+      video.addEventListener('loadedmetadata', res, { once: true });
+      setTimeout(res, 3000);
+    });
+  }
+
+  const vidDuration = video.duration || 0;
+  if (!isFinite(vidDuration) || vidDuration === 0) {
+    document.getElementById('aiStatusText').textContent = 'Could not read video — add frames manually';
+    return;
+  }
+
+  // Auto-capture 5 frames spread across the video
+  const count = 5;
+  const timestamps = [];
+  for (let i = 0; i < count; i++) {
+    timestamps.push((vidDuration / (count + 1)) * (i + 1));
+  }
+
+  const framesRow = document.getElementById('framesRow');
+  const addBtn = document.getElementById('addFrameBtn');
+
+  for (const t of timestamps) {
+    const canvas = await captureFrameAt(video, t);
+    if (!canvas) continue;
+    const frameObj = { canvas, timestamp: t, selected: true };
+    capturedFrames.push(frameObj);
+    const wrap = createFrameThumb(frameObj, capturedFrames.length - 1);
+    framesRow.insertBefore(wrap, addBtn);
+  }
+
+  updateFrameSelCount();
+}
+
+async function captureFrameAt(video, timestamp) {
+  return new Promise(resolve => {
+    const onSeeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 180;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        resolve(canvas);
+      } catch(e) { resolve(null); }
+    };
+    video.addEventListener('seeked', onSeeked, { once: true });
+    video.currentTime = timestamp;
+  });
+}
+
+function createFrameThumb(frameObj, index) {
+  const wrap = document.createElement('div');
+  wrap.className = 'frame-thumb-wrap' + (frameObj.selected ? ' selected' : '');
+  wrap.id = 'framewrap-' + index;
+  wrap.onclick = () => toggleFrameSelection(index);
+
+  const canvas = frameObj.canvas.cloneNode(true);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(frameObj.canvas, 0, 0);
+  canvas.style.cssText = 'width:88px;height:56px;object-fit:cover;display:block;';
+  wrap.appendChild(canvas);
+
+  const ts = document.createElement('div');
+  ts.className = 'frame-timestamp';
+  ts.textContent = formatDuration(frameObj.timestamp);
+  wrap.appendChild(ts);
+
+  return wrap;
+}
+
+function toggleFrameSelection(index) {
+  capturedFrames[index].selected = !capturedFrames[index].selected;
+  const wrap = document.getElementById('framewrap-' + index);
+  if (wrap) wrap.className = 'frame-thumb-wrap' + (capturedFrames[index].selected ? ' selected' : '');
+  updateFrameSelCount();
+}
+
+function updateFrameSelCount() {
+  const count = capturedFrames.filter(f => f.selected).length;
+  const el = document.getElementById('frameSelCount');
+  if (el) el.textContent = count + ' frame' + (count !== 1 ? 's' : '') + ' selected';
+  const btn = document.getElementById('analyzeFramesBtn');
+  if (btn) btn.disabled = count === 0;
+}
+
+async function captureCustomFrame() {
+  const video = document.getElementById('previewVideo');
+  if (!video || !video.src) { showToast('Upload a video first', true); return; }
+  const t = video.currentTime;
+  const canvas = await captureFrameAt(video, t);
+  if (!canvas) { showToast('Could not capture frame', true); return; }
+  const frameObj = { canvas, timestamp: t, selected: true };
+  capturedFrames.push(frameObj);
+  const index = capturedFrames.length - 1;
+  const framesRow = document.getElementById('framesRow');
+  const addBtn = document.getElementById('addFrameBtn');
+  const wrap = createFrameThumb(frameObj, index);
+  framesRow.insertBefore(wrap, addBtn);
+  updateFrameSelCount();
+  showToast('Frame captured at ' + formatDuration(t));
+}
+
+async function analyzeSelectedFrames() {
+  const selected = capturedFrames.filter(f => f.selected);
+  if (!selected.length) { showToast('Select at least one frame', true); return; }
+
+  const btn = document.getElementById('analyzeFramesBtn');
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+  const statusEl = document.getElementById('aiAnalysisStatus');
+  const resultEl = document.getElementById('aiAnalysisResult');
+  statusEl.style.display = 'flex';
+  document.getElementById('aiStatusText').textContent = 'Analyzing ' + selected.length + ' frame' + (selected.length !== 1 ? 's' : '') + ' with AI…';
 
   try {
-    const isImage = file.type.startsWith('image/');
-    let messages;
+    // Convert each selected canvas to base64
+    const imageContents = selected.map(f => ({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/jpeg', data: f.canvas.toDataURL('image/jpeg', 0.8).split(',')[1] }
+    }));
 
-    if (isImage) {
-      // Send image directly to Claude vision
-      const base64 = await fileToBase64(file);
-      messages = [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } },
-          { type: 'text', text: 'Analyze this image in 2-3 sentences. Describe: what you see, who or what is in it, the setting/location, mood, and any notable details. Be specific and factual. This will be used for search.' }
-        ]
-      }];
-    } else {
-      // For video, analyze by filename + type since we can't send video frames easily
-      messages = [{
-        role: 'user',
-        content: `Based on this video file name: "${file.name}", file type: ${file.type}, file size: ${formatSize(file.size)}, generate a 2-sentence placeholder description noting this is a video file and listing likely searchable attributes based on the filename. Start with "Video file:".`
-      }];
-    }
+    imageContents.push({
+      type: 'text',
+      text: 'These are ' + selected.length + ' frames extracted from a video at timestamps: ' + selected.map(f => formatDuration(f.timestamp)).join(', ') + '. Analyze the video content across all frames in 3-4 sentences. Describe: what is happening, who or what is in the video, the setting/location, mood, and any notable details. Be specific and factual. This will be used for search.'
+    });
 
     const res = await fetch(ANTHROPIC_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages })
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: imageContents }]
+      })
     });
 
     const data = await res.json();
     const description = data.content.map(i => i.text || '').join('').trim();
     currentMetadata.aiDescription = description;
-    textEl.textContent = description;
+    document.getElementById('aiAnalysisText').textContent = description;
     statusEl.style.display = 'none';
     resultEl.style.display = 'block';
     const titleEl = document.getElementById('aiAnalysisTitle');
     if (titleEl) titleEl.innerHTML = '<span style="color:#388e3c;font-size:1rem;margin-right:4px;">✓</span> AI Analysis';
     generateTagSuggestions(description);
-    // Remove box border from the form card
+    const box = document.getElementById('aiAnalysisBox');
+    if (box && box.closest('.form-card')) {
+      box.closest('.form-card').style.border = 'none';
+      box.closest('.form-card').style.background = 'transparent';
+      box.closest('.form-card').style.padding = '0';
+      box.closest('.form-card').style.boxShadow = 'none';
+    }
+  } catch(err) {
+    showToast('Analysis failed — check your API key', true);
+    statusEl.style.display = 'none';
+    const titleEl = document.getElementById('aiAnalysisTitle');
+    if (titleEl) titleEl.innerHTML = 'AI Analysis';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Analyze Selected Frames';
+}
+
+async function analyzeImageFile(file) {
+  const statusEl = document.getElementById('aiAnalysisStatus');
+  const resultEl = document.getElementById('aiAnalysisResult');
+  try {
+    const base64 = await fileToBase64(file);
+    const res = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: file.type, data: base64 } },
+          { type: 'text', text: 'Analyze this image in 2-3 sentences. Describe: what you see, who or what is in it, the setting/location, mood, and any notable details. Be specific and factual. This will be used for search.' }
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const description = data.content.map(i => i.text || '').join('').trim();
+    currentMetadata.aiDescription = description;
+    document.getElementById('aiAnalysisText').textContent = description;
+    statusEl.style.display = 'none';
+    resultEl.style.display = 'block';
+    const titleEl = document.getElementById('aiAnalysisTitle');
+    if (titleEl) titleEl.innerHTML = '<span style="color:#388e3c;font-size:1rem;margin-right:4px;">✓</span> AI Analysis';
+    generateTagSuggestions(description);
     const box = document.getElementById('aiAnalysisBox');
     if (box && box.closest('.form-card')) {
       box.closest('.form-card').style.border = 'none';
@@ -1584,7 +1850,6 @@ async function analyzeFileWithAI(file) {
   } catch(err) {
     currentMetadata.aiDescription = null;
     statusEl.style.display = 'none';
-    resultEl.style.display = 'none';
     const titleEl = document.getElementById('aiAnalysisTitle');
     if (titleEl) titleEl.innerHTML = 'AI Analysis';
   }
@@ -1770,6 +2035,16 @@ function resetUpload() {
   document.getElementById('aiAnalysisBox').style.display = 'none';
   const suggestWrap = document.getElementById('aiTagSuggestions');
   if (suggestWrap) suggestWrap.style.display = 'none';
+  capturedFrames = [];
+  const framesRow = document.getElementById('framesRow');
+  const addBtn = document.getElementById('addFrameBtn');
+  if (framesRow && addBtn) {
+    framesRow.innerHTML = '';
+    framesRow.appendChild(addBtn);
+  }
+  const fpSection = document.getElementById('framePickerSection');
+  if (fpSection) fpSection.style.display = 'none';
+  updateFrameSelCount();
   const aiTitle = document.getElementById('aiAnalysisTitle');
   if (aiTitle) aiTitle.innerHTML = 'AI Analysis';
   const aiCard = document.getElementById('aiAnalysisBox') && document.getElementById('aiAnalysisBox').closest('.form-card');
@@ -2144,6 +2419,22 @@ function saveEdit() {
 }
 
 // ─── TOAST ───
+function downloadCurrentFile() {
+  const modalTitle = document.getElementById('modalTitle').textContent;
+  const vid = document.getElementById('modalVideo');
+  const img = document.getElementById('modalImage');
+  const isPhoto = img && img.style.display !== 'none' && img.src;
+  const url = isPhoto ? img.src : (vid ? vid.src : null);
+  if (!url) { showToast('Nothing to download', true); return; }
+  const clip = library.find(c => c.title === modalTitle);
+  const filename = clip ? clip.fileName : (isPhoto ? 'photo.jpg' : 'video.mp4');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  showToast('Downloading ' + filename);
+}
+
 function showToast(msg, isWarning) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -2353,22 +2644,43 @@ function filterByCollection(name, el) {
   renderLibrary();
 }
 
-function promptNewCollection() {
-  const name = prompt('Collection name:');
-  if (!name || !name.trim()) return;
-  const trimmed = name.trim();
+function showNewCollectionInput() {
+  document.getElementById('newColBtn').style.display = 'none';
+  const form = document.getElementById('newColForm');
+  form.style.display = 'flex';
+  document.getElementById('newColInput').focus();
+}
+
+function hideNewCollectionInput() {
+  document.getElementById('newColBtn').style.display = '';
+  document.getElementById('newColForm').style.display = 'none';
+  document.getElementById('newColInput').value = '';
+}
+
+function handleNewColKey(e) {
+  if (e.key === 'Enter') confirmNewCollection();
+  if (e.key === 'Escape') hideNewCollectionInput();
+}
+
+function confirmNewCollection() {
+  const input = document.getElementById('newColInput');
+  const trimmed = (input.value || '').trim();
+  if (!trimmed) { showToast('Enter a name', true); return; }
   if (collections[trimmed]) { showToast('Collection already exists', true); return; }
   collections[trimmed] = [];
+  hideNewCollectionInput();
   renderCollections();
   showToast('Collection "' + trimmed + '" created');
 }
 
+function promptNewCollection() { showNewCollectionInput(); }
+
 function deleteCollection(name) {
-  if (!confirm('Delete collection "' + name + '"?')) return;
   delete collections[name];
   if (activeCollection === name) activeCollection = 'all';
   renderCollections();
   renderLibrary();
+  showToast('Collection "' + name + '" deleted');
 }
 
 function addToCollectionBulk() {
